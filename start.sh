@@ -185,6 +185,10 @@ if [ ! -d "$COMFYUI_DIR" ] || [ ! -d "$VENV_DIR" ]; then
         python -m ensurepip --upgrade
         python -m pip install --upgrade pip
 
+        # Update ComfyUI dependencies (frontend, etc.)
+        echo "Installing ComfyUI requirements..."
+        pip install -r "$COMFYUI_DIR/requirements.txt"
+
         echo "Base packages (torch, numpy, etc.) available from system site-packages"
         echo "Installing custom node dependencies..."
 
@@ -218,6 +222,10 @@ if [ ! -d "$COMFYUI_DIR" ] || [ ! -d "$VENV_DIR" ]; then
 else
     # Just activate the existing venv
     source $VENV_DIR/bin/activate
+
+    # Update ComfyUI dependencies on each start (ensures frontend stays current)
+    echo "Updating ComfyUI dependencies..."
+    pip install -q -r "$COMFYUI_DIR/requirements.txt"
 
     echo "Checking for custom node dependencies..."
 
