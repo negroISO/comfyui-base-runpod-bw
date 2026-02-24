@@ -1,0 +1,37 @@
+# Optimized AI packages for Blackwell GPUs (RTX 6000 Pro, B200)
+# These are pre-installed in the Docker image
+# Run: pip install -r requirements-optimized.txt --no-build-isolation
+
+# Core framework (CUDA 12.8)
+--extra-index-url https://download.pytorch.org/whl/cu128
+torch>=2.5.0
+torchvision
+torchaudio
+
+# Compiler for custom CUDA kernels
+triton>=3.0.0
+
+# Flash Attention 2 - critical for video generation performance
+# Requires: packaging, psutil, ninja
+flash-attn>=2.7.0
+
+# SageAttention 2 - optimized attention for Blackwell (CUDA 12.8+)
+# Has specific optimizations for Blackwell architecture
+sageattention>=2.1.0
+
+# xformers - memory-efficient attention
+xformers>=0.0.28
+
+# bitsandbytes - quantization for lower VRAM usage
+bitsandbytes>=0.44.0
+
+# Accelerate - distributed training/inference
+accelerate>=1.0.0
+
+# Optimum - inference optimization
+optimum>=1.20.0
+
+# Build dependencies (needed for source installs)
+packaging
+psutil
+ninja

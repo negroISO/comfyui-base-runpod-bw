@@ -62,6 +62,33 @@ RUN python -m pip install --upgrade pip \
     && pip install -r requirements.txt \
     && pip install GitPython opencv-python huggingface_hub[cli] aria2p
 
+# Install build tools for optimized packages
+RUN pip install packaging psutil ninja
+
+# Install Triton (required for Flash Attention, SageAttention)
+RUN pip install triton>=3.0.0
+
+# Install Flash Attention 2 (critical for video models)
+# Using MAX_JOBS to limit memory during compilation
+RUN MAX_JOBS=4 pip install flash-attn --no-build-isolation
+
+# Install SageAttention 2 (optimized for Blackwell with CUDA 12.8+)
+RUN pip install sageattention --no-build-isolation || \
+    (cd /tmp && git clone --depth 1 https://github.com/thu-ml/SageAttention.git && \
+     cd SageAttention && MAX_JOBS=4 pip install . --no-build-isolation && \
+     rm -rf /tmp/SageAttention)
+
+# Install xformers (memory-efficient attention)
+RUN pip install xformers --index-url https://download.pytorch.org/whl/cu128 || \
+    pip install xformers --index-url https://download.pytorch.org/whl/cu124 || \
+    pip install xformers
+
+# Install bitsandbytes (quantization)
+RUN pip install bitsandbytes
+
+# Install accelerate and optimum for inference optimization
+RUN pip install accelerate optimum
+
 # Install custom node dependencies
 RUN for dir in custom_nodes/*/; do \
         if [ -f "${dir}requirements.txt" ]; then \

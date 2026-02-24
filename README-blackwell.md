@@ -12,6 +12,12 @@ Optimized ComfyUI deployment for NVIDIA Blackwell architecture GPUs:
 - **Modular model downloads** - download only what you need
 - **Pre-installed custom nodes** for video generation workflows
 - **Fast parallel downloads** with aria2
+- **Optimized AI packages** pre-installed:
+  - Flash Attention 2 (2.8+) - critical for video models
+  - SageAttention 2 (2.2+) - Blackwell-specific optimizations
+  - xformers - memory-efficient attention
+  - Triton - custom CUDA kernels
+  - bitsandbytes - quantization support
 
 ## Quick Start (RunPod)
 
@@ -161,6 +167,32 @@ Set these in RunPod's environment variables or export before running scripts.
 - ComfyUI-VideoHelperSuite
 - ComfyUI-GGUF
 - rgthree-comfy
+
+## Optimized AI Packages
+
+These packages are pre-installed for maximum performance on Blackwell GPUs:
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| Flash Attention 2 | 2.8+ | Fast attention for video models |
+| SageAttention 2 | 2.2+ | Blackwell-optimized attention (CUDA 12.8+) |
+| xformers | 0.0.28+ | Memory-efficient attention |
+| Triton | 3.0+ | Custom CUDA kernel compilation |
+| bitsandbytes | 0.44+ | Quantization for lower VRAM |
+| accelerate | 1.0+ | Distributed training/inference |
+
+To reinstall or update these packages:
+```bash
+cd /workspace/runpod-slim/scripts
+./install-optimized-packages.sh
+```
+
+Or manually:
+```bash
+pip install flash-attn --no-build-isolation
+pip install sageattention --no-build-isolation
+pip install xformers bitsandbytes accelerate
+```
 
 ## Troubleshooting
 
