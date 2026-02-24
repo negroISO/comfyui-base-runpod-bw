@@ -175,6 +175,29 @@ install_node_dependencies() {
     done
 }
 
+# Install optimized attention packages if not present (compiled on pod for speed)
+install_attention_packages() {
+    echo -e "${BLUE}Checking attention packages...${NC}"
+
+    # Check Flash Attention
+    if ! python -c "import flash_attn" 2>/dev/null; then
+        echo -e "${YELLOW}  Installing Flash Attention (this may take a few minutes)...${NC}"
+        pip install flash-attn --no-build-isolation 2>/dev/null || \
+            echo -e "${YELLOW}  Flash Attention not available for this CUDA version${NC}"
+    else
+        echo -e "${GREEN}  Flash Attention: ✓${NC}"
+    fi
+
+    # Check SageAttention
+    if ! python -c "import sageattention" 2>/dev/null; then
+        echo -e "${YELLOW}  Installing SageAttention...${NC}"
+        pip install sageattention --no-build-isolation 2>/dev/null || \
+            echo -e "${YELLOW}  SageAttention not available${NC}"
+    else
+        echo -e "${GREEN}  SageAttention: ✓${NC}"
+    fi
+}
+
 # ---------------------------------------------------------------------------- #
 #                               Main Program                                     #
 # ---------------------------------------------------------------------------- #
@@ -229,6 +252,9 @@ install_extra_nodes
 
 # Install custom node dependencies
 install_node_dependencies
+
+# Install optimized attention packages (if not in base image)
+install_attention_packages
 
 # Setup GPU-specific ComfyUI arguments
 setup_comfyui_args

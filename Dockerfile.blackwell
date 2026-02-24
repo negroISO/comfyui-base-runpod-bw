@@ -68,17 +68,14 @@ RUN pip install bitsandbytes
 # Install accelerate and optimum
 RUN pip install accelerate optimum
 
-# Install Flash Attention 2 from pre-built wheels (much faster than compiling)
-# Using flashattn.dev pre-built wheels for CUDA 12.8
-RUN pip install flash-attn --find-links https://flashattn.dev/whl/cu128/torch2.10/ || \
-    pip install https://github.com/mjun0812/flash-attention-prebuild-wheels/releases/download/v2.8.3/flash_attn-2.8.3+cu128torch2.10-cp310-cp310-linux_x86_64.whl || \
-    (MAX_JOBS=4 pip install flash-attn --no-build-isolation) || true
+# Install Flash Attention 2 from pre-built wheels ONLY (no compilation - crashes CI)
+# Skip if no compatible wheel found - can be installed on pod later if needed
+RUN pip install flash-attn --no-build-isolation 2>/dev/null || \
+    echo "Flash Attention: No pre-built wheel available, skipping (install on pod if needed)"
 
-# Install SageAttention 2 (optimized for Blackwell)
-RUN pip install sageattention --no-build-isolation || \
-    (cd /tmp && git clone --depth 1 https://github.com/thu-ml/SageAttention.git && \
-     cd SageAttention && MAX_JOBS=4 pip install . --no-build-isolation && \
-     rm -rf /tmp/SageAttention) || true
+# Install SageAttention from PyPI only (no compilation)
+RUN pip install sageattention --no-build-isolation 2>/dev/null || \
+    echo "SageAttention: No pre-built wheel available, skipping (install on pod if needed)"
 
 # Install Nunchaku INT4/FP4 kernels for CUDA 12.8
 RUN pip install https://github.com/deepbeepmeep/kernels/releases/download/v1.2.0_Nunchaku/nunchaku-1.2.0+torch2.7-cp310-cp310-linux_x86_64.whl || \
