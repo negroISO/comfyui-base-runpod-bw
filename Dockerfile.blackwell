@@ -68,6 +68,19 @@ RUN pip install bitsandbytes
 # Install accelerate and optimum
 RUN pip install accelerate optimum
 
+# Install Flash Attention 2 (critical for video models)
+RUN MAX_JOBS=4 pip install flash-attn --no-build-isolation || true
+
+# Install SageAttention 2 (optimized for Blackwell)
+RUN pip install sageattention --no-build-isolation || \
+    (cd /tmp && git clone --depth 1 https://github.com/thu-ml/SageAttention.git && \
+     cd SageAttention && MAX_JOBS=4 pip install . --no-build-isolation && \
+     rm -rf /tmp/SageAttention) || true
+
+# Install Nunchaku INT4/FP4 kernels for CUDA 12.8
+RUN pip install https://github.com/deepbeepmeep/kernels/releases/download/v1.2.0_Nunchaku/nunchaku-1.2.0+torch2.7-cp310-cp310-linux_x86_64.whl || \
+    pip install nunchaku || true
+
 # Install custom node dependencies
 RUN for dir in custom_nodes/*/; do \
         if [ -f "${dir}requirements.txt" ]; then \
