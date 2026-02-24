@@ -91,22 +91,36 @@ install_aria2() {
 
 # Setup HuggingFace authentication
 setup_hf_auth() {
+    echo -e "${BLUE}Checking API keys...${NC}"
+
     if [ -n "$HF_TOKEN" ]; then
+        # Also setup hf CLI for fallback
         if ! command -v hf &> /dev/null; then
             pip install -q huggingface_hub[cli]
         fi
         hf login --token "$HF_TOKEN" --add-to-git-credential 2>/dev/null || true
-        echo -e "${GREEN}HuggingFace authenticated${NC}"
+        echo -e "${GREEN}  HF_TOKEN: ✓ Set (authenticated downloads, no rate limits)${NC}"
     else
-        echo -e "${YELLOW}HF_TOKEN not set - downloads may be rate-limited${NC}"
+        echo -e "${YELLOW}  HF_TOKEN: ✗ Not set (downloads may be rate-limited)${NC}"
+        echo -e "${YELLOW}    Set in RunPod: Template > Environment Variables > HF_TOKEN${NC}"
     fi
+
+    if [ -n "$CIVITAI_API_KEY" ]; then
+        echo -e "${GREEN}  CIVITAI_API_KEY: ✓ Set (can download premium models)${NC}"
+    else
+        echo -e "${YELLOW}  CIVITAI_API_KEY: ✗ Not set (Civitai models will be skipped)${NC}"
+        echo -e "${YELLOW}    Set in RunPod: Template > Environment Variables > CIVITAI_API_KEY${NC}"
+    fi
+    echo ""
 }
 
 # Generic download function with progress
+# Uses aria2c with 16 parallel connections for maximum speed
 download_file() {
     local url="$1"
     local output="$2"
     local name="$3"
+    local auth_header="$4"  # Optional: "Authorization: Bearer TOKEN"
 
     if [ -f "$output" ]; then
         echo -e "${YELLOW}  [SKIP] $name already exists${NC}"
@@ -118,23 +132,40 @@ download_file() {
 
     echo -e "${BLUE}  Downloading: $name${NC}"
 
+    local success=false
+
     if [ "$DOWNLOADER" = "aria2c" ]; then
-        aria2c -x 16 -s 16 -k 1M --file-allocation=none \
-            -d "$dir" -o "$(basename "$output")" "$url" 2>/dev/null
+        if [ -n "$auth_header" ]; then
+            aria2c -x 16 -s 16 -k 1M --file-allocation=none --console-log-level=warn \
+                --header="$auth_header" \
+                -d "$dir" -o "$(basename "$output")" "$url" 2>/dev/null && success=true
+        else
+            aria2c -x 16 -s 16 -k 1M --file-allocation=none --console-log-level=warn \
+                -d "$dir" -o "$(basename "$output")" "$url" 2>/dev/null && success=true
+        fi
     else
-        wget -q --show-progress -O "$output" "$url"
+        if [ -n "$auth_header" ]; then
+            wget -q --show-progress --header="$auth_header" -O "$output" "$url" && success=true
+        else
+            wget -q --show-progress -O "$output" "$url" && success=true
+        fi
     fi
 
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}  [OK] $name${NC}"
-    else
-        echo -e "${RED}  [FAILED] $name${NC}"
-        rm -f "$output" 2>/dev/null
-        return 1
+    if [ "$success" = true ] && [ -f "$output" ]; then
+        local size=$(stat -c%s "$output" 2>/dev/null || stat -f%z "$output" 2>/dev/null || echo "0")
+        if [ "$size" -gt 1000 ]; then
+            echo -e "${GREEN}  [OK] $name${NC}"
+            return 0
+        fi
     fi
+
+    echo -e "${RED}  [FAILED] $name${NC}"
+    rm -f "$output" 2>/dev/null
+    return 1
 }
 
-# Download from HuggingFace using hf CLI
+# Download from HuggingFace
+# Prefers aria2c with auth token for 16x parallel download speed
 hf_download() {
     local repo="$1"
     local file="$2"
@@ -150,14 +181,23 @@ hf_download() {
     fi
 
     mkdir -p "$output_dir"
-    echo -e "${BLUE}  Downloading: $name${NC}"
 
-    # Try hf CLI first, fall back to direct download
-    if command -v hf &> /dev/null; then
+    local url="https://huggingface.co/${repo}/resolve/main/${file}"
+    local auth_header=""
+
+    # Use HF_TOKEN for authenticated downloads (faster, no rate limits)
+    if [ -n "$HF_TOKEN" ]; then
+        auth_header="Authorization: Bearer $HF_TOKEN"
+    fi
+
+    # Prefer aria2c for speed, fall back to hf CLI, then wget
+    if [ "$DOWNLOADER" = "aria2c" ]; then
+        download_file "$url" "$output_file" "$name" "$auth_header"
+    elif command -v hf &> /dev/null && [ -n "$HF_TOKEN" ]; then
+        echo -e "${BLUE}  Downloading: $name${NC}"
         hf download "$repo" "$file" --local-dir "$output_dir" --local-dir-use-symlinks False 2>/dev/null
     else
-        local url="https://huggingface.co/${repo}/resolve/main/${file}"
-        download_file "$url" "$output_file" "$name"
+        download_file "$url" "$output_file" "$name" "$auth_header"
     fi
 
     # Handle nested directories from hf download
@@ -172,11 +212,14 @@ hf_download() {
     fi
 
     if [ -f "$output_file" ]; then
-        echo -e "${GREEN}  [OK] $name${NC}"
-    else
-        echo -e "${RED}  [FAILED] $name${NC}"
-        return 1
+        local size=$(stat -c%s "$output_file" 2>/dev/null || stat -f%z "$output_file" 2>/dev/null || echo "0")
+        if [ "$size" -gt 1000 ]; then
+            return 0
+        fi
     fi
+
+    echo -e "${RED}  [FAILED] $name${NC}"
+    return 1
 }
 
 # Download from Civitai with API key

@@ -96,13 +96,51 @@ pip install -q xformers 2>/dev/null || {
 # ============================================
 # bitsandbytes (quantization)
 # ============================================
-echo -e "${YELLOW}[7/8] Installing bitsandbytes...${NC}"
+echo -e "${YELLOW}[7/10] Installing bitsandbytes...${NC}"
 pip install -q bitsandbytes
+
+# ============================================
+# Nunchaku INT4/FP4 Kernels
+# ============================================
+echo -e "${YELLOW}[8/10] Installing Nunchaku INT4/FP4 kernels...${NC}"
+
+# Detect GPU compute capability for FP4 support
+GPU_SM=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d '.' || echo "0")
+echo -e "${BLUE}GPU Compute Capability: sm${GPU_SM}${NC}"
+
+# Check CUDA version for appropriate wheel
+if [[ "$CUDA_VERSION" == "13"* ]]; then
+    # CUDA 13 - use PyTorch 2.10 wheels
+    echo -e "${GREEN}Using Nunchaku for CUDA 13 / PyTorch 2.10${NC}"
+    pip install https://github.com/nunchaku-ai/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch2.10-cp311-cp311-linux_x86_64.whl 2>/dev/null || \
+    pip install https://github.com/deepbeepmeep/kernels/releases/download/v1.2.0_Nunchaku/nunchaku-1.2.0+torch2.7-cp310-cp310-linux_x86_64.whl 2>/dev/null || \
+    echo -e "${YELLOW}Nunchaku wheel install failed, trying pip...${NC}" && pip install nunchaku 2>/dev/null || true
+else
+    # CUDA 12.8 - use PyTorch 2.7.1 wheels
+    echo -e "${GREEN}Using Nunchaku for CUDA 12.8 / PyTorch 2.7.1${NC}"
+    pip install https://github.com/deepbeepmeep/kernels/releases/download/v1.2.0_Nunchaku/nunchaku-1.2.0+torch2.7-cp310-cp310-linux_x86_64.whl 2>/dev/null || \
+    pip install nunchaku 2>/dev/null || true
+fi
+
+# ============================================
+# Light2xv NVP4 Kernels (RTX 50xx / sm120+ only)
+# ============================================
+echo -e "${YELLOW}[9/10] Checking Light2xv NVP4 kernels...${NC}"
+
+if [[ "$GPU_SM" -ge "120" ]]; then
+    echo -e "${GREEN}RTX 50xx (sm120+) detected - installing Light2xv FP4 kernels${NC}"
+    pip install https://github.com/deepbeepmeep/kernels/releases/download/Light2xv/lightx2v_kernel-0.0.2+torch2.10.0-cp311-abi3-linux_x86_64.whl 2>/dev/null || {
+        echo -e "${YELLOW}Light2xv wheel failed, FP4 may not be available${NC}"
+    }
+else
+    echo -e "${YELLOW}GPU is not sm120+ (RTX 50xx) - skipping Light2xv FP4 kernels${NC}"
+    echo -e "${BLUE}Note: FP4 quantization requires RTX 50xx series GPUs${NC}"
+fi
 
 # ============================================
 # Additional optimizations
 # ============================================
-echo -e "${YELLOW}[8/8] Installing additional packages...${NC}"
+echo -e "${YELLOW}[10/10] Installing additional packages...${NC}"
 
 # Accelerate for distributed training
 pip install -q accelerate
@@ -123,14 +161,32 @@ echo ""
 echo -e "${BLUE}Installed packages:${NC}"
 python -c "
 import sys
-packages = ['torch', 'triton', 'flash_attn', 'sageattention', 'xformers', 'bitsandbytes']
+packages = ['torch', 'triton', 'flash_attn', 'sageattention', 'xformers', 'bitsandbytes', 'nunchaku', 'lightx2v_kernel']
 for pkg in packages:
     try:
         mod = __import__(pkg.replace('-', '_'))
         ver = getattr(mod, '__version__', 'installed')
         print(f'  {pkg}: {ver}')
     except ImportError:
-        print(f'  {pkg}: NOT INSTALLED')
+        if pkg in ['nunchaku', 'lightx2v_kernel']:
+            print(f'  {pkg}: not installed (optional)')
+        else:
+            print(f'  {pkg}: NOT INSTALLED')
+"
+
+echo ""
+echo -e "${BLUE}INT4/FP4 Quantization Support:${NC}"
+python -c "
+try:
+    import nunchaku
+    print('  Nunchaku INT4/FP4: available')
+except:
+    print('  Nunchaku INT4/FP4: not available')
+try:
+    import lightx2v_kernel
+    print('  Light2xv FP4 (sm120+): available')
+except:
+    print('  Light2xv FP4 (sm120+): not available (requires RTX 50xx)')
 "
 
 echo ""

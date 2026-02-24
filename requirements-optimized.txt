@@ -25,6 +25,17 @@ xformers>=0.0.28
 # bitsandbytes - quantization for lower VRAM usage
 bitsandbytes>=0.44.0
 
+# Nunchaku - INT4/FP4 quantized inference kernels
+# For CUDA 12.8: pip install https://github.com/deepbeepmeep/kernels/releases/download/v1.2.0_Nunchaku/nunchaku-1.2.0+torch2.7-cp310-cp310-linux_x86_64.whl
+# For CUDA 13:   pip install https://github.com/nunchaku-ai/nunchaku/releases/download/v1.2.1/nunchaku-1.2.1+cu13.0torch2.10-cp311-cp311-linux_x86_64.whl
+# Note: FP4 support is hardware dependent
+nunchaku>=1.2.0
+
+# Light2xv NVP4 Kernels - FP4 support for RTX 50xx (sm120+) ONLY
+# Requires CUDA 13 and PyTorch 2.10
+# pip install https://github.com/deepbeepmeep/kernels/releases/download/Light2xv/lightx2v_kernel-0.0.2+torch2.10.0-cp311-abi3-linux_x86_64.whl
+# lightx2v_kernel>=0.0.2  # Optional, RTX 50xx only
+
 # Accelerate - distributed training/inference
 accelerate>=1.0.0
 

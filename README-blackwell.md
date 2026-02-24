@@ -95,6 +95,77 @@ export CIVITAI_API_KEY="your_civitai_key"
 - MelBandRoformer (audio separation)
 - Qwen3-VL GGUF models
 
+## Storage Requirements
+
+Plan your storage based on which model sets you need:
+
+### Model Storage Breakdown
+
+| Model Set | Size | Primary Models | Text Encoders | LoRAs/Extras |
+|-----------|------|----------------|---------------|--------------|
+| LTX-2 | ~80 GB | ~45 GB | ~25 GB | ~10 GB |
+| WAN 2.2 | ~100 GB | ~70 GB | ~15 GB | ~15 GB |
+| HunyuanVideo 1.5 | ~43 GB | ~25 GB | ~15 GB | ~3 GB |
+| Extras | ~30 GB | ~20 GB | ~8 GB | ~2 GB |
+| **All Models** | **~250 GB** | | | |
+
+### Total Storage Recommendations
+
+| Configuration | Models | ComfyUI + Nodes | Outputs/Temp | **Total Recommended** |
+|---------------|--------|-----------------|--------------|----------------------|
+| Minimal (1 model set) | 80 GB | 15 GB | 50 GB | **150 GB** |
+| Standard (2 model sets) | 180 GB | 15 GB | 100 GB | **300 GB** |
+| Full (all models) | 250 GB | 15 GB | 150 GB | **420 GB** |
+| Production (all + headroom) | 250 GB | 15 GB | 300 GB | **600 GB** |
+
+### RunPod Storage Options
+
+**Option 1: Pod Volume Storage (`/workspace`)** - Recommended for most users
+- Persists across pod restarts
+- Fast NVMe storage
+- Set volume size when creating pod:
+  - 150 GB minimum (single model set)
+  - 300 GB recommended (multiple model sets)
+  - 500 GB+ for production with large outputs
+
+**Option 2: Network Volume** - Best for sharing models across pods
+- Mount to `/workspace/models` or similar
+- Slower than local NVMe but persistent
+- Great for teams or multiple pods sharing same models
+- Configure in RunPod: Network Volumes > Create > Mount to pod
+
+**Option 3: Hybrid Approach** - Best performance + flexibility
+```
+/workspace/              # Pod volume (fast, 100-150 GB)
+├── ComfyUI/
+│   ├── output/          # Generated videos (local, fast)
+│   ├── temp/            # Temp files (local, fast)
+│   └── models -> /net/models  # Symlink to network storage
+
+/net/models/             # Network volume (slower, 300+ GB)
+├── diffusion_models/
+├── text_encoders/
+├── vae/
+└── loras/
+```
+
+Setup hybrid storage:
+```bash
+# Mount network volume to /net/models, then:
+rm -rf /workspace/runpod-slim/ComfyUI/models
+ln -s /net/models /workspace/runpod-slim/ComfyUI/models
+```
+
+### Output Space Considerations
+
+Video generation creates large files:
+- 720p 5-second video: ~50-100 MB
+- 1080p 5-second video: ~150-300 MB
+- Batch of 10 videos: ~1-3 GB
+- Full workflow session: 5-20 GB
+
+**Recommendation:** Reserve at least 50 GB for outputs, more for production use.
+
 ## GPU Configurations
 
 The startup script auto-detects your GPU and applies optimized settings:
@@ -155,7 +226,39 @@ Edit `/workspace/runpod-slim/comfyui_args.txt`:
 | `JUPYTER_PASSWORD` | Jupyter Lab password |
 | `PUBLIC_KEY` | SSH public key for key-based auth |
 
-Set these in RunPod's environment variables or export before running scripts.
+### Setting Up API Keys in RunPod
+
+**For fastest downloads**, set your API keys in RunPod before starting the pod:
+
+1. **Get your tokens:**
+   - HuggingFace: https://huggingface.co/settings/tokens (create a read token)
+   - Civitai: https://civitai.com/user/account (API Keys section)
+
+2. **Add to RunPod Template:**
+   - Go to your RunPod template or pod settings
+   - Click "Environment Variables"
+   - Add:
+     ```
+     HF_TOKEN=hf_your_token_here
+     CIVITAI_API_KEY=your_civitai_key_here
+     ```
+
+3. **Or set at runtime** (SSH/Jupyter terminal):
+   ```bash
+   export HF_TOKEN="hf_your_token_here"
+   export CIVITAI_API_KEY="your_civitai_key_here"
+   ./download-models.sh -f all
+   ```
+
+### Download Speed Comparison
+
+| Method | Speed | Notes |
+|--------|-------|-------|
+| aria2c + HF_TOKEN | ~500 MB/s | 16 parallel connections, no rate limits |
+| aria2c (no token) | ~50 MB/s | Rate limited by HuggingFace |
+| wget/hf CLI | ~30 MB/s | Single connection |
+
+**Recommendation:** Always set `HF_TOKEN` and use the `-f` flag for aria2c.
 
 ## Pre-installed Custom Nodes
 
@@ -179,7 +282,19 @@ These packages are pre-installed for maximum performance on Blackwell GPUs:
 | xformers | 0.0.28+ | Memory-efficient attention |
 | Triton | 3.0+ | Custom CUDA kernel compilation |
 | bitsandbytes | 0.44+ | Quantization for lower VRAM |
+| Nunchaku | 1.2+ | INT4/FP4 quantized inference kernels |
 | accelerate | 1.0+ | Distributed training/inference |
+
+### INT4/FP4 Quantization Support
+
+**Nunchaku** provides optimized INT4/FP4 dequantization kernels:
+- Pre-installed for CUDA 12.8
+- Enables faster inference with quantized models
+
+**Light2xv NVP4 Kernels** (RTX 50xx / sm120+ only):
+- FP4 support requires RTX 50xx series GPUs
+- Auto-installed if sm120+ GPU detected
+- Requires CUDA 13 and PyTorch 2.10
 
 To reinstall or update these packages:
 ```bash
@@ -192,6 +307,8 @@ Or manually:
 pip install flash-attn --no-build-isolation
 pip install sageattention --no-build-isolation
 pip install xformers bitsandbytes accelerate
+# Nunchaku for CUDA 12.8:
+pip install https://github.com/deepbeepmeep/kernels/releases/download/v1.2.0_Nunchaku/nunchaku-1.2.0+torch2.7-cp310-cp310-linux_x86_64.whl
 ```
 
 ## Troubleshooting

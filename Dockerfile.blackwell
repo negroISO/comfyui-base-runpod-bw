@@ -86,6 +86,11 @@ RUN pip install xformers --index-url https://download.pytorch.org/whl/cu128 || \
 # Install bitsandbytes (quantization)
 RUN pip install bitsandbytes
 
+# Install Nunchaku INT4/FP4 kernels for CUDA 12.8
+# Note: FP4 support is hardware dependent (RTX 50xx for full FP4)
+RUN pip install https://github.com/deepbeepmeep/kernels/releases/download/v1.2.0_Nunchaku/nunchaku-1.2.0+torch2.7-cp310-cp310-linux_x86_64.whl || \
+    pip install nunchaku || true
+
 # Install accelerate and optimum for inference optimization
 RUN pip install accelerate optimum
 
