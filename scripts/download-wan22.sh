@@ -30,9 +30,9 @@ hf_download "Kijai/WanVideo_comfy_fp8_scaled" "I2V/Wan2_2-I2V-A14B-HIGH_fp8_e4m3
 
 # Move nested files
 for subdir in "split_files/diffusion_models" "I2V"; do
-    for f in "${DIFFUSION_DIR}/${subdir}/"*.safetensors 2>/dev/null; do
-        [ -f "$f" ] && mv "$f" "${DIFFUSION_DIR}/"
-    done
+    if ls "${DIFFUSION_DIR}/${subdir}/"*.safetensors 1>/dev/null 2>&1; then
+        mv "${DIFFUSION_DIR}/${subdir}/"*.safetensors "${DIFFUSION_DIR}/"
+    fi
 done
 rm -rf "${DIFFUSION_DIR}/split_files" "${DIFFUSION_DIR}/I2V" 2>/dev/null || true
 
@@ -45,9 +45,9 @@ hf_download "Comfy-Org/Wan_2.2_ComfyUI_Repackaged" "split_files/diffusion_models
 hf_download "Kijai/WanVideo_comfy" "Wan2_1-T2V-14B_fp8_e4m3fn.safetensors" "$DIFFUSION_DIR" "WAN 2.1 T2V 14B"
 
 # Move nested files
-for f in "${DIFFUSION_DIR}/split_files/diffusion_models/"*.safetensors 2>/dev/null; do
-    [ -f "$f" ] && mv "$f" "${DIFFUSION_DIR}/"
-done
+if ls "${DIFFUSION_DIR}/split_files/diffusion_models/"*.safetensors 1>/dev/null 2>&1; then
+    mv "${DIFFUSION_DIR}/split_files/diffusion_models/"*.safetensors "${DIFFUSION_DIR}/"
+fi
 rm -rf "${DIFFUSION_DIR}/split_files" 2>/dev/null || true
 
 section "WAN 2.2 Text Encoders"
@@ -60,9 +60,9 @@ hf_download "NSFW-API/NSFW-Wan-UMT5-XXL" "nsfw_wan_umt5-xxl_fp8_scaled.safetenso
 hf_download "NSFW-API/NSFW-Wan-UMT5-XXL" "nsfw_wan_umt5-xxl_bf16.safetensors" "$TEXT_ENCODER_DIR" "NSFW UMT5 XXL BF16"
 
 # Move nested files
-for f in "${TEXT_ENCODER_DIR}/split_files/text_encoders/"*.safetensors 2>/dev/null; do
-    [ -f "$f" ] && mv "$f" "${TEXT_ENCODER_DIR}/"
-done
+if ls "${TEXT_ENCODER_DIR}/split_files/text_encoders/"*.safetensors 1>/dev/null 2>&1; then
+    mv "${TEXT_ENCODER_DIR}/split_files/text_encoders/"*.safetensors "${TEXT_ENCODER_DIR}/"
+fi
 rm -rf "${TEXT_ENCODER_DIR}/split_files" 2>/dev/null || true
 
 section "WAN 2.2 VAE"
@@ -71,9 +71,9 @@ hf_download "Comfy-Org/Wan_2.2_ComfyUI_Repackaged" "split_files/vae/wan_2.1_vae.
 hf_download "Kijai/WanVideo_comfy" "Wan2_1_VAE_bf16.safetensors" "$VAE_DIR" "WAN 2.1 VAE BF16"
 
 # Move nested files
-for f in "${VAE_DIR}/split_files/vae/"*.safetensors 2>/dev/null; do
-    [ -f "$f" ] && mv "$f" "${VAE_DIR}/"
-done
+if ls "${VAE_DIR}/split_files/vae/"*.safetensors 1>/dev/null 2>&1; then
+    mv "${VAE_DIR}/split_files/vae/"*.safetensors "${VAE_DIR}/"
+fi
 rm -rf "${VAE_DIR}/split_files" 2>/dev/null || true
 
 section "WAN 2.2 SVI & Distill LoRAs"
@@ -122,9 +122,9 @@ hf_download "FX-FeiHou/wan2.2-Remix" "NSFW/Wan2.2_Remix_NSFW_i2v_14b_high_lighti
 hf_download "FX-FeiHou/wan2.2-Remix" "NSFW/Wan2.2_Remix_NSFW_i2v_14b_low_lighting_fp8_e4m3fn_v2.1.safetensors" "$DIFFUSION_DIR" "Remix NSFW LOW"
 
 # Move NSFW folder files
-for f in "${DIFFUSION_DIR}/NSFW/"*.safetensors 2>/dev/null; do
-    [ -f "$f" ] && mv "$f" "${DIFFUSION_DIR}/"
-done
+if ls "${DIFFUSION_DIR}/NSFW/"*.safetensors 1>/dev/null 2>&1; then
+    mv "${DIFFUSION_DIR}/NSFW/"*.safetensors "${DIFFUSION_DIR}/"
+fi
 rm -rf "${DIFFUSION_DIR}/NSFW" 2>/dev/null || true
 
 section "GGUF Models (for VRAM efficiency)"

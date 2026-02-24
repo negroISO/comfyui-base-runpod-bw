@@ -39,9 +39,9 @@ hf_download "Kijai/LTXV2_comfy" "diffusion_models/ltx-2-19b-distilled-fp8_transf
 hf_download "Kijai/LTXV2_comfy" "diffusion_models/ltx-2-19b-dev_fp4_transformer_only.safetensors" "$DIFFUSION_DIR" "LTX-2 Dev FP4 Transformer (Fastest)"
 
 # Move files from nested directories
-for f in "${DIFFUSION_DIR}/diffusion_models/"*.safetensors 2>/dev/null; do
-    [ -f "$f" ] && mv "$f" "${DIFFUSION_DIR}/"
-done
+if ls "${DIFFUSION_DIR}/diffusion_models/"*.safetensors 1>/dev/null 2>&1; then
+    mv "${DIFFUSION_DIR}/diffusion_models/"*.safetensors "${DIFFUSION_DIR}/"
+fi
 rm -rf "${DIFFUSION_DIR}/diffusion_models" 2>/dev/null || true
 
 section "LTX-2 Text Encoders"
@@ -59,9 +59,12 @@ hf_download "Kijai/LTXV2_comfy" "text_encoders/ltx-2-19b-embeddings_connector_de
 hf_download "Kijai/LTXV2_comfy" "text_encoders/ltx-2-19b-embeddings_connector_distill_bf16.safetensors" "$TEXT_ENCODER_DIR" "Embeddings Connector Distill"
 
 # Move files from nested directories
-for f in "${TEXT_ENCODER_DIR}/split_files/text_encoders/"*.safetensors "${TEXT_ENCODER_DIR}/text_encoders/"*.safetensors 2>/dev/null; do
-    [ -f "$f" ] && mv "$f" "${TEXT_ENCODER_DIR}/"
-done
+if ls "${TEXT_ENCODER_DIR}/split_files/text_encoders/"*.safetensors 1>/dev/null 2>&1; then
+    mv "${TEXT_ENCODER_DIR}/split_files/text_encoders/"*.safetensors "${TEXT_ENCODER_DIR}/"
+fi
+if ls "${TEXT_ENCODER_DIR}/text_encoders/"*.safetensors 1>/dev/null 2>&1; then
+    mv "${TEXT_ENCODER_DIR}/text_encoders/"*.safetensors "${TEXT_ENCODER_DIR}/"
+fi
 rm -rf "${TEXT_ENCODER_DIR}/split_files" "${TEXT_ENCODER_DIR}/text_encoders" 2>/dev/null || true
 
 # Create symlinks in clip folder for compatibility
@@ -75,9 +78,9 @@ hf_download "Kijai/LTXV2_comfy" "VAE/LTX2_video_vae_bf16.safetensors" "$VAE_DIR"
 hf_download "Kijai/LTXV2_comfy" "VAE/LTX2_audio_vae_bf16.safetensors" "$VAE_DIR" "LTX2 Audio VAE"
 
 # Move files from nested directories
-for f in "${VAE_DIR}/VAE/"*.safetensors 2>/dev/null; do
-    [ -f "$f" ] && mv "$f" "${VAE_DIR}/"
-done
+if ls "${VAE_DIR}/VAE/"*.safetensors 1>/dev/null 2>&1; then
+    mv "${VAE_DIR}/VAE/"*.safetensors "${VAE_DIR}/"
+fi
 rm -rf "${VAE_DIR}/VAE" 2>/dev/null || true
 
 section "LTX-2 Official LoRAs"
@@ -97,9 +100,9 @@ hf_download "Lightricks/LTX-2-19b-IC-LoRA-Detailer" "ltx-2-19b-ic-lora-detailer.
 hf_download "Lightricks/LTX-2-19b-LoRA-Camera-Control-Jib-Up" "ltx-2-19b-lora-camera-control-jib-up.safetensors" "$LORAS_DIR" "Camera Jib Up LoRA"
 
 # Move files from nested directories
-for f in "${LORAS_DIR}/loras/"*.safetensors 2>/dev/null; do
-    [ -f "$f" ] && mv "$f" "${LORAS_DIR}/"
-done
+if ls "${LORAS_DIR}/loras/"*.safetensors 1>/dev/null 2>&1; then
+    mv "${LORAS_DIR}/loras/"*.safetensors "${LORAS_DIR}/"
+fi
 rm -rf "${LORAS_DIR}/loras" 2>/dev/null || true
 
 print_summary

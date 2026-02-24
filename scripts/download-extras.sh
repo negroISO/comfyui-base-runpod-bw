@@ -48,9 +48,9 @@ hf_download "QingyanBai/Ditto_models" "models_comfy/ditto_global_style_comfy.saf
 hf_download "QingyanBai/Ditto_models" "models_comfy/ditto_global_comfy.safetensors" "$DIFFUSION_DIR" "Ditto Global"
 
 # Move nested files
-for f in "${DIFFUSION_DIR}/models_comfy/"*.safetensors 2>/dev/null; do
-    [ -f "$f" ] && mv "$f" "${DIFFUSION_DIR}/"
-done
+if ls "${DIFFUSION_DIR}/models_comfy/"*.safetensors 1>/dev/null 2>&1; then
+    mv "${DIFFUSION_DIR}/models_comfy/"*.safetensors "${DIFFUSION_DIR}/"
+fi
 rm -rf "${DIFFUSION_DIR}/models_comfy" 2>/dev/null || true
 
 section "MelBandRoFormer (Audio Separation)"
