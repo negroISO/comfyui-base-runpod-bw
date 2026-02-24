@@ -1,0 +1,161 @@
+# Dockerfile for Blackwell GPUs (RTX 6000 Pro, B200)
+# Optimized for high-VRAM professional/datacenter GPUs
+
+# ============================================
+# STAGE 1: Builder
+# ============================================
+FROM ubuntu:22.04 AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+# Install Python 3.12 and build tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 \
+    python3.12-venv \
+    python3.12-dev \
+    python3-pip \
+    git \
+    wget \
+    curl \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install CUDA 12.8 build tools (Blackwell support)
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb \
+    && dpkg -i cuda-keyring_1.1-1_all.deb \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends cuda-minimal-build-12-8 \
+    && rm -rf /var/lib/apt/lists/* cuda-keyring_1.1-1_all.deb
+
+ENV PATH="/usr/local/cuda-12.8/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/cuda-12.8/lib64:${LD_LIBRARY_PATH}"
+
+# Set Python 3.12 as default
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 \
+    && update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1
+
+WORKDIR /app
+
+# Clone ComfyUI
+RUN git clone --depth 1 https://github.com/comfyanonymous/ComfyUI.git
+
+# Clone essential custom nodes
+WORKDIR /app/ComfyUI/custom_nodes
+RUN git clone --depth 1 https://github.com/ltdrdata/ComfyUI-Manager.git \
+    && git clone --depth 1 https://github.com/kijai/ComfyUI-KJNodes.git \
+    && git clone --depth 1 https://github.com/MoonGoblinDev/Civicomfy.git \
+    && git clone --depth 1 https://github.com/MadiatorLabs/ComfyUI-RunpodDirect.git \
+    && git clone --depth 1 https://github.com/Lightricks/ComfyUI-LTXVideo.git \
+    && git clone --depth 1 https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git \
+    && git clone --depth 1 https://github.com/city96/ComfyUI-GGUF.git \
+    && git clone --depth 1 https://github.com/rgthree/rgthree-comfy.git
+
+WORKDIR /app/ComfyUI
+
+# Install PyTorch with CUDA 12.8 and dependencies
+RUN python -m pip install --upgrade pip \
+    && pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128 \
+    && pip install -r requirements.txt \
+    && pip install GitPython opencv-python huggingface_hub[cli] aria2p
+
+# Install custom node dependencies
+RUN for dir in custom_nodes/*/; do \
+        if [ -f "${dir}requirements.txt" ]; then \
+            pip install -r "${dir}requirements.txt" || true; \
+        fi; \
+    done
+
+# ============================================
+# STAGE 2: Runtime
+# ============================================
+FROM ubuntu:22.04 AS runtime
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+ENV IMAGEIO_FFMPEG_EXE=/usr/bin/ffmpeg
+
+# Install runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    software-properties-common \
+    && add-apt-repository ppa:deadsnakes/ppa \
+    && add-apt-repository ppa:cybermax-dexter/ffmpeg-nvenc \
+    && apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 \
+    python3.12-venv \
+    python3.12-dev \
+    git \
+    wget \
+    curl \
+    nano \
+    htop \
+    tmux \
+    golang \
+    make \
+    build-essential \
+    ca-certificates \
+    openssh-client \
+    openssh-server \
+    net-tools \
+    iputils-ping \
+    procps \
+    ffmpeg \
+    aria2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install CUDA 12.8 runtime
+RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb \
+    && dpkg -i cuda-keyring_1.1-1_all.deb \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends \
+    cuda-libraries-12-8 \
+    cuda-nvrtc-12-8 \
+    libcudnn9-cuda-12 \
+    && rm -rf /var/lib/apt/lists/* cuda-keyring_1.1-1_all.deb
+
+ENV PATH="/usr/local/cuda-12.8/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/cuda-12.8/lib64:${LD_LIBRARY_PATH}"
+
+# Set Python 3.12 as default
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 \
+    && update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1
+
+# Copy Python packages from builder
+COPY --from=builder /usr/local/lib/python3.12/dist-packages /usr/local/lib/python3.12/dist-packages
+COPY --from=builder /usr/lib/python3/dist-packages /usr/lib/python3/dist-packages
+COPY --from=builder /app/ComfyUI /app/ComfyUI
+
+# Install FileBrowser
+RUN curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash
+
+# Install Jupyter
+RUN pip install jupyterlab ipykernel \
+    && python -m ipykernel install --user --name python3
+
+# Configure SSH
+RUN mkdir -p /var/run/sshd \
+    && echo "PermitRootLogin yes" >> /etc/ssh/sshd_config \
+    && echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config
+
+# Ensure pip is used (not uv) for ComfyUI-Manager compatibility
+RUN pip uninstall -y uv 2>/dev/null || true
+
+# Create workspace directory
+RUN mkdir -p /workspace/runpod-slim
+
+# Copy scripts and configs
+COPY scripts/ /scripts/
+COPY configs/ /configs/
+COPY start-blackwell.sh /start.sh
+
+RUN chmod +x /start.sh /scripts/*.sh
+
+WORKDIR /workspace/runpod-slim
+
+# Expose ports
+EXPOSE 8188 22 8888 8080
+
+CMD ["/start.sh"]

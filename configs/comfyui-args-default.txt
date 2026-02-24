@@ -1,0 +1,13 @@
+# ComfyUI Default Arguments for Blackwell GPUs
+# Auto-selected if no specific GPU config found
+
+# Performance optimizations for Blackwell architecture
+--fast
+--cuda-malloc
+--cuda-stream
+
+# Conservative VRAM reservation
+--reserve-vram 0.5
+
+# Preview generation
+--preview-method auto

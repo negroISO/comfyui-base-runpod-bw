@@ -1,0 +1,19 @@
+# ComfyUI Arguments for RTX 6000 Pro Blackwell (48GB VRAM)
+# These are optimized for professional workstation GPU
+
+# Performance optimizations
+--fast
+--cuda-malloc
+--cuda-stream
+
+# VRAM management - reserve 0.5GB for system
+--reserve-vram 0.5
+
+# Use high VRAM mode (48GB is plenty)
+--highvram
+
+# Preview generation
+--preview-method auto
+
+# Batch processing (adjust based on workflow complexity)
+# --max-batch-size 4

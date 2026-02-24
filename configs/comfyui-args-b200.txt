@@ -1,0 +1,22 @@
+# ComfyUI Arguments for NVIDIA B200 (192GB VRAM)
+# These are optimized for datacenter GPU with massive VRAM
+
+# Performance optimizations
+--fast
+--cuda-malloc
+--cuda-stream
+
+# VRAM management - reserve 1GB for system overhead
+--reserve-vram 1.0
+
+# Use high VRAM mode (192GB allows full models in memory)
+--highvram
+
+# Preview generation
+--preview-method auto
+
+# Aggressive batching (192GB allows large batches)
+--max-batch-size 8
+
+# Disable model offloading (plenty of VRAM)
+# With 192GB you can keep multiple large models loaded
