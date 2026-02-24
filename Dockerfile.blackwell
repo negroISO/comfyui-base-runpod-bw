@@ -132,15 +132,12 @@ RUN mkdir -p /var/run/sshd \
 # Ensure pip is used (not uv) for ComfyUI-Manager compatibility
 RUN pip uninstall -y uv 2>/dev/null || true
 
-# Create workspace directory
-RUN mkdir -p /workspace/runpod-slim
-
-# Copy scripts and configs
-COPY scripts/ /workspace/runpod-slim/scripts/
-COPY configs/ /workspace/runpod-slim/configs/
+# Copy scripts and configs to /opt (not overwritten by volume mount)
+COPY scripts/ /opt/runpod-scripts/
+COPY configs/ /opt/runpod-configs/
 COPY start-blackwell.sh /start.sh
 
-RUN chmod +x /start.sh /workspace/runpod-slim/scripts/*.sh
+RUN chmod +x /start.sh /opt/runpod-scripts/*.sh
 
 WORKDIR /workspace/runpod-slim
 

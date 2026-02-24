@@ -194,6 +194,19 @@ start_jupyter
 # Create workspace directories
 mkdir -p /workspace/runpod-slim
 
+# Copy scripts from image if not in workspace (first boot)
+if [ ! -d "$SCRIPTS_DIR" ]; then
+    echo -e "${YELLOW}Copying scripts to workspace...${NC}"
+    cp -r /opt/runpod-scripts "$SCRIPTS_DIR"
+    chmod +x "$SCRIPTS_DIR"/*.sh
+fi
+
+# Copy configs from image if not in workspace (first boot)
+if [ ! -d "$CONFIGS_DIR" ]; then
+    echo -e "${YELLOW}Copying configs to workspace...${NC}"
+    cp -r /opt/runpod-configs "$CONFIGS_DIR"
+fi
+
 # Copy ComfyUI from image if not in workspace (first boot)
 if [ ! -d "$COMFYUI_DIR" ]; then
     echo -e "${YELLOW}First boot: Copying ComfyUI to workspace...${NC}"
