@@ -39,7 +39,8 @@ RUN git clone --depth 1 https://github.com/ltdrdata/ComfyUI-Manager.git \
     && git clone --depth 1 https://github.com/Lightricks/ComfyUI-LTXVideo.git \
     && git clone --depth 1 https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git \
     && git clone --depth 1 https://github.com/city96/ComfyUI-GGUF.git \
-    && git clone --depth 1 https://github.com/rgthree/rgthree-comfy.git
+    && git clone --depth 1 https://github.com/rgthree/rgthree-comfy.git \
+    && git clone --depth 1 https://github.com/huchukato/ComfyUI-QwenVL-Mod.git
 
 WORKDIR /app/ComfyUI
 
