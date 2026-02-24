@@ -4,7 +4,7 @@
 # ============================================
 # STAGE 1: Builder
 # ============================================
-FROM nvidia/cuda:12.4.1-devel-ubuntu22.04 AS builder
+FROM nvidia/cuda:12.8.0-devel-ubuntu22.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
@@ -47,8 +47,8 @@ WORKDIR /app/ComfyUI
 # Upgrade pip
 RUN python -m pip install --upgrade pip
 
-# Install PyTorch with CUDA 12.4 (compatible with 12.8 runtime)
-RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+# Install PyTorch with CUDA 12.8 (required for Blackwell GPUs)
+RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
 
 # Install ComfyUI requirements
 RUN pip install -r requirements.txt
@@ -59,8 +59,8 @@ RUN pip install GitPython opencv-python huggingface_hub[cli] packaging psutil ni
 # Install Triton
 RUN pip install triton
 
-# Install xformers
-RUN pip install xformers --index-url https://download.pytorch.org/whl/cu124 || pip install xformers || true
+# Install xformers for CUDA 12.8
+RUN pip install xformers --index-url https://download.pytorch.org/whl/cu128 || pip install xformers || true
 
 # Install bitsandbytes
 RUN pip install bitsandbytes
@@ -79,7 +79,7 @@ RUN for dir in custom_nodes/*/; do \
 # ============================================
 # STAGE 2: Runtime
 # ============================================
-FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04 AS runtime
+FROM nvidia/cuda:12.8.0-runtime-ubuntu22.04 AS runtime
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
