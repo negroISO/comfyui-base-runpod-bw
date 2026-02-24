@@ -368,3 +368,41 @@ docker push ghcr.io/negroiso/comfyui-blackwell:latest
 ## License
 
 GPL-3.0 (same as upstream)
+
+---
+
+## Quick Reference
+
+### Storage Quick Guide
+
+| Use Case | Recommended Storage |
+|----------|---------------------|
+| Single model set (LTX-2 or WAN) | **150 GB** |
+| Two model sets | **300 GB** |
+| All models | **420 GB** |
+| Production (all + headroom) | **600 GB** |
+
+### Model Download Commands
+
+```bash
+cd /workspace/runpod-slim/scripts
+
+# Set API keys first (optional but recommended for speed)
+export HF_TOKEN="your_token"
+export CIVITAI_API_KEY="your_key"
+
+# Download what you need
+./download-models.sh ltx2        # LTX-2 (~80GB)
+./download-models.sh wan22       # WAN 2.2 (~100GB)
+./download-models.sh hunyuan     # HunyuanVideo 1.5 (~43GB)
+./download-models.sh extras      # Extras (~30GB)
+./download-models.sh -f all      # Everything (~250GB, fast mode)
+```
+
+### Supported GPUs
+
+| GPU | VRAM | Optimized Config |
+|-----|------|------------------|
+| RTX 5090 | 32 GB | `--fast --highvram` |
+| RTX 6000 Pro | 48 GB | `--fast --highvram` |
+| B200 | 192 GB | `--fast --highvram --max-batch-size 8` |
