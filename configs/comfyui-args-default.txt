@@ -3,8 +3,6 @@
 
 # Performance optimizations for Blackwell architecture
 --fast
---cuda-malloc
---cuda-stream
 
 # Conservative VRAM reservation
 --reserve-vram 0.5

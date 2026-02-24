@@ -3,8 +3,6 @@
 
 # Performance optimizations
 --fast
---cuda-malloc
---cuda-stream
 
 # VRAM management - reserve 0.5GB for system
 --reserve-vram 0.5

@@ -127,10 +127,9 @@ setup_comfyui_args() {
             cat > "$args_file" << 'EOF'
 # Blackwell GPU optimizations
 --fast
---cuda-malloc
---cuda-stream
 --reserve-vram 0.5
 --preview-method auto
+--highvram
 EOF
         fi
     fi
