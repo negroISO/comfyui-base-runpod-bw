@@ -5,7 +5,6 @@
 set -e
 
 COMFYUI_DIR="/workspace/runpod-slim/ComfyUI"
-VENV_DIR="$COMFYUI_DIR/.venv"
 SCRIPTS_DIR="/workspace/runpod-slim/scripts"
 CONFIGS_DIR="/workspace/runpod-slim/configs"
 
@@ -137,21 +136,15 @@ EOF
     fi
 }
 
-# Install custom nodes (only ones not in base image)
-install_custom_nodes() {
-    echo -e "${BLUE}Checking custom nodes...${NC}"
+# Install additional custom nodes not in base image
+install_extra_nodes() {
+    echo -e "${BLUE}Checking for extra custom nodes...${NC}"
     cd "$COMFYUI_DIR/custom_nodes"
 
-    # These are NOT in the base image - install them
     local EXTRA_NODES=(
-        "https://github.com/MadiatorLabs/ComfyUI-RunpodDirect"
-        "https://github.com/Lightricks/ComfyUI-LTXVideo"
-        "https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite"
         "https://github.com/filliptm/ComfyUI_Fill-Nodes"
         "https://github.com/willmiao/ComfyUI-Lora-Manager"
-        "https://github.com/rgthree/rgthree-comfy"
         "https://github.com/DoctorDiffusion/ComfyUI-MediaMixer"
-        "https://github.com/city96/ComfyUI-GGUF"
     )
 
     for repo in "${EXTRA_NODES[@]}"; do
@@ -199,69 +192,31 @@ export_env_vars
 start_filebrowser
 start_jupyter
 
-# Copy scripts if they exist in the image
-if [ -d "/scripts" ] && [ ! -d "$SCRIPTS_DIR" ]; then
-    mkdir -p "$SCRIPTS_DIR"
-    cp -r /scripts/* "$SCRIPTS_DIR/"
-    chmod +x "$SCRIPTS_DIR"/*.sh
+# Create workspace directories
+mkdir -p /workspace/runpod-slim
+
+# Copy ComfyUI from image if not in workspace (first boot)
+if [ ! -d "$COMFYUI_DIR" ]; then
+    echo -e "${YELLOW}First boot: Copying ComfyUI to workspace...${NC}"
+    cp -r /app/ComfyUI "$COMFYUI_DIR"
 fi
 
-# Copy configs if they exist in the image
-if [ -d "/configs" ] && [ ! -d "$CONFIGS_DIR" ]; then
-    mkdir -p "$CONFIGS_DIR"
-    cp -r /configs/* "$CONFIGS_DIR/"
-fi
+# Create model directories
+mkdir -p "$COMFYUI_DIR/models/diffusion_models"
+mkdir -p "$COMFYUI_DIR/models/text_encoders"
+mkdir -p "$COMFYUI_DIR/models/vae"
+mkdir -p "$COMFYUI_DIR/models/loras/LTXV2"
+mkdir -p "$COMFYUI_DIR/models/loras/Wan Video 2.2 T2V 14B"
+mkdir -p "$COMFYUI_DIR/models/clip_vision"
+mkdir -p "$COMFYUI_DIR/models/upscale_models"
+mkdir -p "$COMFYUI_DIR/models/rife"
+mkdir -p "$COMFYUI_DIR/models/LLM/GGUF"
 
-# Setup ComfyUI if needed
-if [ ! -d "$COMFYUI_DIR" ] || [ ! -d "$VENV_DIR" ]; then
-    echo -e "${YELLOW}First time setup: Installing ComfyUI...${NC}"
+# Install extra custom nodes
+install_extra_nodes
 
-    # Clone ComfyUI if not present
-    if [ ! -d "$COMFYUI_DIR" ]; then
-        cd /workspace/runpod-slim
-        git clone --depth 1 https://github.com/comfyanonymous/ComfyUI.git
-    fi
-
-    # Install ComfyUI-Manager if not present (should be in base image)
-    if [ ! -d "$COMFYUI_DIR/custom_nodes/ComfyUI-Manager" ]; then
-        mkdir -p "$COMFYUI_DIR/custom_nodes"
-        cd "$COMFYUI_DIR/custom_nodes"
-        git clone --depth 1 https://github.com/ltdrdata/ComfyUI-Manager.git
-    fi
-
-    # Install extra custom nodes
-    install_custom_nodes
-
-    # Create venv with system site-packages (torch etc. pre-installed)
-    if [ ! -d "$VENV_DIR" ]; then
-        cd $COMFYUI_DIR
-        python3.12 -m venv --system-site-packages $VENV_DIR
-        source $VENV_DIR/bin/activate
-
-        python -m pip install --upgrade pip
-        pip install -r "$COMFYUI_DIR/requirements.txt"
-
-        install_node_dependencies
-    fi
-else
-    # Activate existing venv
-    source $VENV_DIR/bin/activate
-
-    # Quick update of ComfyUI requirements
-    pip install -q -r "$COMFYUI_DIR/requirements.txt"
-
-    # Update custom nodes
-    echo -e "${BLUE}Updating custom nodes...${NC}"
-    cd "$COMFYUI_DIR/custom_nodes"
-    for node_dir in */; do
-        if [ -d "$node_dir/.git" ]; then
-            cd "$COMFYUI_DIR/custom_nodes/$node_dir"
-            git pull -q 2>/dev/null || true
-        fi
-    done
-
-    install_node_dependencies
-fi
+# Install custom node dependencies
+install_node_dependencies
 
 # Setup GPU-specific ComfyUI arguments
 setup_comfyui_args

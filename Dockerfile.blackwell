@@ -1,42 +1,29 @@
-# Dockerfile for Blackwell GPUs (RTX 6000 Pro, B200)
+# Dockerfile for Blackwell GPUs (RTX 6000 Pro, B200, RTX 5090)
 # Optimized for high-VRAM professional/datacenter GPUs
 
 # ============================================
 # STAGE 1: Builder
 # ============================================
-FROM ubuntu:22.04 AS builder
+FROM nvidia/cuda:12.4.1-devel-ubuntu22.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
 
-# Install Python 3.12 and build tools
+# Install Python and build tools
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    software-properties-common \
-    && add-apt-repository ppa:deadsnakes/ppa \
-    && apt-get update && apt-get install -y --no-install-recommends \
-    python3.12 \
-    python3.12-venv \
-    python3.12-dev \
+    python3 \
+    python3-venv \
+    python3-dev \
     python3-pip \
     git \
     wget \
     curl \
     build-essential \
+    ninja-build \
     && rm -rf /var/lib/apt/lists/*
 
-# Install CUDA 12.8 build tools (Blackwell support)
-RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb \
-    && dpkg -i cuda-keyring_1.1-1_all.deb \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends cuda-minimal-build-12-8 \
-    && rm -rf /var/lib/apt/lists/* cuda-keyring_1.1-1_all.deb
-
-ENV PATH="/usr/local/cuda-12.8/bin:${PATH}"
-ENV LD_LIBRARY_PATH="/usr/local/cuda-12.8/lib64:${LD_LIBRARY_PATH}"
-
-# Set Python 3.12 as default
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 \
-    && update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1
+# Set Python aliases
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 
 WORKDIR /app
 
@@ -56,47 +43,34 @@ RUN git clone --depth 1 https://github.com/ltdrdata/ComfyUI-Manager.git \
 
 WORKDIR /app/ComfyUI
 
-# Install PyTorch with CUDA 12.8 and dependencies
-RUN python -m pip install --upgrade pip \
-    && pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128 \
-    && pip install -r requirements.txt \
-    && pip install GitPython opencv-python huggingface_hub[cli] aria2p
+# Upgrade pip
+RUN python -m pip install --upgrade pip
 
-# Install build tools for optimized packages
-RUN pip install packaging psutil ninja
+# Install PyTorch with CUDA 12.4 (compatible with 12.8 runtime)
+RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
 
-# Install Triton (required for Flash Attention, SageAttention)
-RUN pip install triton>=3.0.0
+# Install ComfyUI requirements
+RUN pip install -r requirements.txt
 
-# Install Flash Attention 2 (critical for video models)
-# Using MAX_JOBS to limit memory during compilation
-RUN MAX_JOBS=4 pip install flash-attn --no-build-isolation
+# Install additional dependencies
+RUN pip install GitPython opencv-python huggingface_hub[cli] packaging psutil ninja
 
-# Install SageAttention 2 (optimized for Blackwell with CUDA 12.8+)
-RUN pip install sageattention --no-build-isolation || \
-    (cd /tmp && git clone --depth 1 https://github.com/thu-ml/SageAttention.git && \
-     cd SageAttention && MAX_JOBS=4 pip install . --no-build-isolation && \
-     rm -rf /tmp/SageAttention)
+# Install Triton
+RUN pip install triton
 
-# Install xformers (memory-efficient attention)
-RUN pip install xformers --index-url https://download.pytorch.org/whl/cu128 || \
-    pip install xformers --index-url https://download.pytorch.org/whl/cu124 || \
-    pip install xformers
+# Install xformers
+RUN pip install xformers --index-url https://download.pytorch.org/whl/cu124 || pip install xformers || true
 
-# Install bitsandbytes (quantization)
+# Install bitsandbytes
 RUN pip install bitsandbytes
 
-# Install Nunchaku INT4/FP4 kernels for CUDA 12.8
-# Note: FP4 support is hardware dependent (RTX 50xx for full FP4)
-RUN pip install https://github.com/deepbeepmeep/kernels/releases/download/v1.2.0_Nunchaku/nunchaku-1.2.0+torch2.7-cp310-cp310-linux_x86_64.whl || \
-    pip install nunchaku || true
-
-# Install accelerate and optimum for inference optimization
+# Install accelerate and optimum
 RUN pip install accelerate optimum
 
 # Install custom node dependencies
 RUN for dir in custom_nodes/*/; do \
         if [ -f "${dir}requirements.txt" ]; then \
+            echo "Installing requirements for ${dir}"; \
             pip install -r "${dir}requirements.txt" || true; \
         fi; \
     done
@@ -104,7 +78,7 @@ RUN for dir in custom_nodes/*/; do \
 # ============================================
 # STAGE 2: Runtime
 # ============================================
-FROM ubuntu:22.04 AS runtime
+FROM nvidia/cuda:12.4.1-runtime-ubuntu22.04 AS runtime
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
@@ -112,20 +86,16 @@ ENV IMAGEIO_FFMPEG_EXE=/usr/bin/ffmpeg
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    software-properties-common \
-    && add-apt-repository ppa:deadsnakes/ppa \
-    && add-apt-repository ppa:cybermax-dexter/ffmpeg-nvenc \
-    && apt-get update && apt-get install -y --no-install-recommends \
-    python3.12 \
-    python3.12-venv \
-    python3.12-dev \
+    python3 \
+    python3-venv \
+    python3-dev \
+    python3-pip \
     git \
     wget \
     curl \
     nano \
     htop \
     tmux \
-    golang \
     make \
     build-essential \
     ca-certificates \
@@ -136,28 +106,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     procps \
     ffmpeg \
     aria2 \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install CUDA 12.8 runtime
-RUN wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2204/x86_64/cuda-keyring_1.1-1_all.deb \
-    && dpkg -i cuda-keyring_1.1-1_all.deb \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
-    cuda-libraries-12-8 \
-    cuda-nvrtc-12-8 \
-    libcudnn9-cuda-12 \
-    && rm -rf /var/lib/apt/lists/* cuda-keyring_1.1-1_all.deb
+# Set Python aliases
+RUN update-alternatives --install /usr/bin/python python /usr/bin/python3 1
 
-ENV PATH="/usr/local/cuda-12.8/bin:${PATH}"
-ENV LD_LIBRARY_PATH="/usr/local/cuda-12.8/lib64:${LD_LIBRARY_PATH}"
-
-# Set Python 3.12 as default
-RUN update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.12 1 \
-    && update-alternatives --install /usr/bin/python python /usr/bin/python3.12 1
-
-# Copy Python packages from builder
-COPY --from=builder /usr/local/lib/python3.12/dist-packages /usr/local/lib/python3.12/dist-packages
-COPY --from=builder /usr/lib/python3/dist-packages /usr/lib/python3/dist-packages
+# Copy Python packages and ComfyUI from builder
+COPY --from=builder /usr/local/lib/python3.10/dist-packages /usr/local/lib/python3.10/dist-packages
 COPY --from=builder /app/ComfyUI /app/ComfyUI
 
 # Install FileBrowser
@@ -179,11 +136,11 @@ RUN pip uninstall -y uv 2>/dev/null || true
 RUN mkdir -p /workspace/runpod-slim
 
 # Copy scripts and configs
-COPY scripts/ /scripts/
-COPY configs/ /configs/
+COPY scripts/ /workspace/runpod-slim/scripts/
+COPY configs/ /workspace/runpod-slim/configs/
 COPY start-blackwell.sh /start.sh
 
-RUN chmod +x /start.sh /scripts/*.sh
+RUN chmod +x /start.sh /workspace/runpod-slim/scripts/*.sh
 
 WORKDIR /workspace/runpod-slim
 
