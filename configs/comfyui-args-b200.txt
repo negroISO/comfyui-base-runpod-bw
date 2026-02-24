@@ -4,6 +4,13 @@
 # Performance optimizations
 --fast
 
+# CRITICAL: Disable xformers - not compatible with Blackwell (sm_120)
+# xformers only supports up to compute capability 9.0 (Ada/Hopper)
+--disable-xformers
+
+# Use PyTorch's native scaled dot product attention instead
+--use-pytorch-cross-attention
+
 # VRAM management - reserve 1GB for system overhead
 --reserve-vram 1.0
 
@@ -14,6 +21,3 @@
 --preview-method auto
 
 # With 192GB VRAM, multiple large models can stay loaded
-
-# Disable model offloading (plenty of VRAM)
-# With 192GB you can keep multiple large models loaded

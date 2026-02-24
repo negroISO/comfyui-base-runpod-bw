@@ -4,6 +4,13 @@
 # Performance optimizations for Blackwell architecture
 --fast
 
+# CRITICAL: Disable xformers - not compatible with Blackwell (sm_120)
+# xformers only supports up to compute capability 9.0 (Ada/Hopper)
+--disable-xformers
+
+# Use PyTorch's native scaled dot product attention instead
+--use-pytorch-cross-attention
+
 # Conservative VRAM reservation
 --reserve-vram 0.5
 
